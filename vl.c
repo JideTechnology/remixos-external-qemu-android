@@ -4606,7 +4606,9 @@ int run_qemu_main(int argc, const char **argv)
         return 1;
     }
 
-    configure_accelerator(current_machine);
+    if (configure_accelerator(current_machine)) {
+        return 1;
+    }
 
 
     if (qtest_chrdev) {
