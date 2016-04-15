@@ -573,14 +573,21 @@ extern "C" int main(int argc, char **argv) {
     AConfig* skinConfig;
     char* skinPath;
     user_config_init();
+    bool hasGuestRenderer = false;
     {
-        int api_level = avdInfo_getApiLevel(avd);
-        // have to do this adjustment before 'parse_skin_files'
-        // for gingerbread force 16-bit color depth.
-        // bug: b.android.com/206934
-        if (api_level < 14 || (opts->gpu && !strcmp(opts->gpu, "off"))) {
-            hw->hw_lcd_depth = 16;
+        int apiLevel = avdInfo_getApiLevel(avd);
+        char* apiArch = avdInfo_getTargetAbi(avd);
+        bool isGoogle = avdInfo_isGoogleApis(avd);
+
+        hasGuestRenderer = isGoogle &&
+                                  (apiLevel >= 22) &&
+                                  (!strcmp(apiArch, "x86") ||
+                                   !strcmp(apiArch, "x86_64"));
+        if (hasGuestRenderer) {
+            // use 32bit for api22/23 x86/64 goolge image, regardless gpu options
+            hw->hw_lcd_depth = 32;
         }
+        free(apiArch);
     }
     parse_skin_files(opts->skindir, opts->skin, opts, hw,
                      &skinConfig, &skinPath);
@@ -950,15 +957,6 @@ extern "C" int main(int argc, char **argv) {
             setGpuBlacklistStatus(blacklisted);
         }
 
-        int api_level = avdInfo_getApiLevel(avd);
-        char* api_arch = avdInfo_getTargetAbi(avd);
-        bool isGoogle = avdInfo_isGoogleApis(avd);
-
-        bool has_guest_renderer = isGoogle &&
-                                  (api_level >= 23) &&
-                                  (!strcmp(api_arch, "x86") ||
-                                   !strcmp(api_arch, "x86_64"));
-
         if (!emuglConfig_init(&emuglConfig,
                               hw->hw_gpu_enabled,
                               hw->hw_gpu_mode,
@@ -966,7 +964,7 @@ extern "C" int main(int argc, char **argv) {
                               0,
                               opts->no_window,
                               blacklisted,
-                              has_guest_renderer)) {
+                              hasGuestRenderer)) {
             derror("%s", emuglConfig.status);
             exit(1);
         }
