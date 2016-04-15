@@ -1230,7 +1230,11 @@ extern "C" int main(int argc, char **argv) {
             kernelCommandLine += " qemu.gles=2";   // Using guest
         }
     } else {
-        kernelCommandLine += " qemu.gles=0";
+        if (hasGuestRenderer && opts->gpu && (strcmp(opts->gpu, "guest") == 0)) {
+            kernelCommandLine += " qemu.gles=2";
+        } else {
+            kernelCommandLine += " qemu.gles=0";
+        }
     }
 
     if (hw->hw_gsmModem) {
