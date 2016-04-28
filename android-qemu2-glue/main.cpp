@@ -542,7 +542,7 @@ extern "C" int main(int argc, char **argv) {
 
     // Read hardware configuration, apply overrides from options.
     AndroidHwConfig* hw = android_hw;
-    if (avdInfo_initHwConfig(avd, hw) < 0) {
+    if (avdInfo_initHwConfig(avd, hw, true /* isQemu2 */) < 0) {
         derror("could not read hardware configuration ?");
         exit(1);
     }
