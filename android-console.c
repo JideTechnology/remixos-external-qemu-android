@@ -29,7 +29,9 @@
 #include "sysemu/sysemu.h"
 #include "hmp.h"
 
-#ifdef USE_ANDROID_EMU
+#include "android/console_auth.h"
+
+#ifdef CONFIG_ANDROID
 
 #include "android/globals.h"
 
@@ -1913,5 +1915,15 @@ void android_console_geo_nmea(Monitor* mon, const QDict* qdict) {
 }
 void android_console_geo_fix(Monitor* mon, const QDict* qdict) {
     monitor_printf(mon, "KO: emulator not built with USE_ANDROID_EMU\n");
+}
+#endif
+
+#ifndef CONFIG_ANDROID
+const char* android_console_auth_banner_get() {
+    return "";
+}
+
+const char* android_console_help_banner_get() {
+    return "";
 }
 #endif

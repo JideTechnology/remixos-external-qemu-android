@@ -96,6 +96,9 @@ void android_console_rotate_screen(Monitor *mon, const QDict *qdict);
 
 void android_monitor_print_error(Monitor *mon, const char *fmt, ...);
 
+const char* android_console_auth_banner_get();
+const char* android_console_help_banner_get();
+
 #ifdef USE_ANDROID_EMU
 void qemu2_android_console_setup( const QAndroidBatteryAgent* battery_agent,
         const QAndroidFingerAgent* finger_agent,
