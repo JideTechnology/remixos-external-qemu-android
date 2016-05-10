@@ -17,6 +17,7 @@
 
 #include "android-console.h"
 
+#include "android/console_auth.h"
 #include "monitor/monitor.h"
 #include "qemu/sockets.h"
 #include "net/slirp.h"
@@ -29,7 +30,6 @@
 #include "sysemu/sysemu.h"
 #include "hmp.h"
 
-#include "android/console_auth.h"
 
 #ifdef CONFIG_ANDROID
 
@@ -844,6 +844,34 @@ static const char* avd_help[] = {
         "name",
 };
 
+void android_console_auth(Monitor* mon, const QDict* qdict) {
+    char* args = (char*)qdict_get_try_str(qdict, "arg");
+
+    if (!args) {
+        monitor_printf(mon, "KO: missing authentication token\n");
+        return;
+    }
+
+    char* auth_token = android_console_auth_get_token_dup();
+    if (!auth_token) {
+        monitor_printf(mon,
+                       "KO: unable to read ~/.emulator_console_auth_token\n");
+        return;
+    }
+
+    if (0 != strcmp(auth_token, args)) {
+        free(auth_token);
+        monitor_printf(mon,
+                       "KO: authentication token does not match "
+                       "~/.emulator_console_auth_token\n");
+        return;
+    }
+    free(auth_token);
+
+    monitor_printf(mon, "%s\n", android_console_help_banner_get());
+    monitor_set_command_table(mon, monitor_get_android_cmds());
+}
+
 void android_console_avd_stop(Monitor* mon, const QDict* qdict) {
     if (!runstate_is_running()) {
         monitor_printf(mon, "KO: virtual device already stopped\n");
@@ -948,6 +976,15 @@ void android_console_avd(Monitor* mon, const QDict* qdict) {
     monitor_printf(mon,
                    "%s\n%s\n",
                    avd_help[cmd],
+                   helptext ? "OK" : "KO: missing sub-command");
+}
+
+void android_console_avd_preauth(Monitor* mon, const QDict* qdict) {
+    /* This only gets called for bad subcommands and help requests */
+    const char* helptext = qdict_get_try_str(qdict, "helptext");
+
+    /* 'avd name' is the only supported command */
+    monitor_printf(mon, "%s\n%s\n", avd_help[CMD_AVD_NAME],
                    helptext ? "OK" : "KO: missing sub-command");
 }
 
@@ -1733,6 +1770,10 @@ void android_console_gsm_data(Monitor* mon, const QDict* qdict) {
 }
 
 void android_console_gsm_voice(Monitor* mon, const QDict* qdict) {
+    monitor_printf(mon, "KO: emulator not built with USE_ANDROID_EMU\n");
+}
+
+void android_console_auth(Monitor* mon, const QDict* qdict) {
     monitor_printf(mon, "KO: emulator not built with USE_ANDROID_EMU\n");
 }
 

@@ -151,10 +151,7 @@ static void android_init_console_and_adb(int console_baseport,
          * This is equivalent to
          * "-mon chardev=private-chardev,mode=android-console"
          */
-        monitor_init(chr,
-                     MONITOR_ANDROID_CONSOLE |
-                     MONITOR_USE_READLINE |
-                     MONITOR_DYNAMIC_CMDS);
+        monitor_init(chr, MONITOR_ANDROID_CONSOLE | MONITOR_USE_READLINE);
         android_base_port = baseport;
 
         printf("console on port %d, ADB on port %d\n", baseport, baseport + 1);

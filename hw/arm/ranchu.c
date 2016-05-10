@@ -502,10 +502,7 @@ static void initialize_console_and_adb(VirtBoardInfo *vbi)
          * This is equivalent to
          * "-mon chardev=private-chardev,mode=android-console"
          */
-        monitor_init(chr,
-                     MONITOR_ANDROID_CONSOLE |
-                     MONITOR_USE_READLINE |
-                     MONITOR_DYNAMIC_CMDS);
+        monitor_init(chr, MONITOR_ANDROID_CONSOLE | MONITOR_USE_READLINE);
         printf("console on port %d, ADB on port %d\n", baseport, baseport + 1);
         android_base_port = baseport;
         return;
