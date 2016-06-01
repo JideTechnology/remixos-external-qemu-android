@@ -1165,7 +1165,9 @@ extern "C" int main(int argc, char **argv) {
     }
 
     // Additional memory for -gpu guest software renderers (e.g., SwiftShader)
-    if (!strcmp(android_hw->hw_gpu_mode, "guest")) {
+    if ((android_hw->hw_gpu_mode && !strcmp(android_hw->hw_gpu_mode, "guest")) ||
+        (opts->gpu && !strcmp(opts->gpu, "guest")) ||
+        !hw->hw_gpu_enabled) {
         VERBOSE_PRINT(init, "Adjusting Contiguous Memory Allocation"
                             "of %dx%d framebuffer for software renderer.",
                             hw->hw_lcd_width, hw->hw_lcd_height);
