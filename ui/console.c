@@ -30,9 +30,12 @@
 #include "sysemu/char.h"
 #include "trace.h"
 #include "exec/memory.h"
+#include "android/utils/debug.h"
 
 #define DEFAULT_BACKSCROLL 512
 #define CONSOLE_CURSOR_PERIOD 500
+
+#define  D(...)    VERBOSE_PRINT(adb,__VA_ARGS__)
 
 typedef struct TextAttributes {
     uint8_t fgcol:4;
@@ -2097,12 +2100,15 @@ extern int graphic_width;
 
 void kbd_mouse_event(int dx, int dy, int dz, int buttonsState) {
 
+    D(" kbd mouse event %d %d %d %d ", dx, dy, dz, buttonsState);
     assert(active_console && qemu_console_is_graphic(active_console));
 
     static uint32_t bmap[INPUT_BUTTON_MAX] = {
         [INPUT_BUTTON_LEFT]       = MOUSE_EVENT_LBUTTON,
         [INPUT_BUTTON_MIDDLE]     = MOUSE_EVENT_MBUTTON,
         [INPUT_BUTTON_RIGHT]      = MOUSE_EVENT_RBUTTON,
+        [INPUT_BUTTON_WHEEL_UP]    = MOUSE_EVENT_WHEELUP,
+        [INPUT_BUTTON_WHEEL_DOWN]    = MOUSE_EVENT_WHEELDN,
     };
     static uint32_t prev_state;
 
@@ -2111,7 +2117,7 @@ void kbd_mouse_event(int dx, int dy, int dz, int buttonsState) {
         prev_state = (uint32_t)buttonsState;
     }
 
-    const bool isAbsolute = qemu_input_is_absolute();
+    const bool isAbsolute = false; //qemu_input_is_absolute();
     int y;
     if (graphic_rotate) {
         const int width = isAbsolute ? INPUT_EVENT_ABS_SIZE : graphic_width;
@@ -2126,7 +2132,9 @@ void kbd_mouse_event(int dx, int dy, int dz, int buttonsState) {
 
         qemu_input_queue_abs(active_console, INPUT_AXIS_X, dx, w);
         qemu_input_queue_abs(active_console, INPUT_AXIS_Y, y, h);
+        D(" rel pos %d %d %d %d", dx, y, w, h);
     } else {
+        D(" rel pos %d %d ", dx, y);
         qemu_input_queue_rel(active_console, INPUT_AXIS_X, dx);
         qemu_input_queue_rel(active_console, INPUT_AXIS_Y, y);
     }

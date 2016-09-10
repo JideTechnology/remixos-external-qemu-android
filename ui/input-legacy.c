@@ -157,6 +157,8 @@ static void legacy_mouse_event(DeviceState *dev, QemuConsole *src,
         [INPUT_BUTTON_LEFT]   = MOUSE_EVENT_LBUTTON,
         [INPUT_BUTTON_MIDDLE] = MOUSE_EVENT_MBUTTON,
         [INPUT_BUTTON_RIGHT]  = MOUSE_EVENT_RBUTTON,
+        [INPUT_BUTTON_WHEEL_UP] = MOUSE_EVENT_WHEELUP,
+        [INPUT_BUTTON_WHEEL_DOWN] = MOUSE_EVENT_WHEELDN,
     };
     QEMUPutMouseEntry *s = (QEMUPutMouseEntry *)dev;
 

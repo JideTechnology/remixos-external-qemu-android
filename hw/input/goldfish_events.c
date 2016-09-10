@@ -28,7 +28,10 @@
 
 #include "hw/input/goldfish_events.h"
 
-#define MAX_EVENTS (256 * 4)
+#include "android/utils/debug.h"
+
+#define  D(...)    VERBOSE_PRINT(adb,__VA_ARGS__)
+#define MAX_EVENTS (256 * 100)
 
 typedef struct {
     const char *name;
@@ -57,7 +60,7 @@ typedef struct {
 /* Relative axes */
 #define REL_X                   0x00
 #define REL_Y                   0x01
-
+#define REL_WHEEL               0x08
 #define BTN_TOUCH 0x14a
 #define BTN_MOUSE 0x110
 
@@ -498,6 +501,8 @@ typedef struct {
 #define EV_FF_STATUS            0x17
 #define EV_MAX                  0x1f
 
+#define MSC_SCAN                0x04
+
 #define EV_TYPE(_type, _codes)    {#_type, (_type), _codes}
 #define EV_TYPE_END     {NULL, 0}
 static const GoldfishEventTypeInfo ev_type_table[] = {
@@ -798,6 +803,8 @@ static void gf_evdev_put_mouse(void *opaque,
     /* Note that, like the "classic" Android emulator, we
      * have dz == 0 for touchscreen, == 1 for trackball
      */
+    D("evdev_put_mouse dx %d dy %d dz %d, buttonstate %d", dx, dy, dz, buttons_state);
+
     if (s->have_multitouch  &&  dz == 0) {
         /* Convert mouse event into multi-touch event */
         multitouch_update_pointer(MTES_DEVICE, (buttons_state & 2) ? 1 : 0, dx, dy,
@@ -805,14 +812,42 @@ static void gf_evdev_put_mouse(void *opaque,
         return;
     }
 #endif
-    if (s->have_touch  &&  dz == 0) {
-        enqueue_event(s, EV_ABS, ABS_X, dx);
-        enqueue_event(s, EV_ABS, ABS_Y, dy);
-        enqueue_event(s, EV_ABS, ABS_Z, dz);
-        enqueue_event(s, EV_KEY, BTN_TOUCH, buttons_state & 1);
+
+    if (buttons_state & 8 || buttons_state & 16) {
+        D("wheel up or down");
+        if (buttons_state & 8) {
+            D("wheel up");
+            enqueue_event(s, EV_REL, REL_WHEEL, 1);
+        } else if (buttons_state & 16) {
+            D("wheel down");
+            enqueue_event(s, EV_REL, REL_WHEEL, -1);
+        }
         enqueue_event(s, EV_SYN, 0, 0);
         return;
     }
+    if (s->have_touch  &&  dz == 0) {
+        enqueue_event(s, EV_REL, REL_X, dx);
+        enqueue_event(s, EV_REL, REL_Y, dy);
+        
+        if (buttons_state & 4) {
+            D("evdev_put_mouse, evkey btn right");
+            enqueue_event(s, EV_KEY, BTN_RIGHT, buttons_state & 1);
+        } else  {
+            D("evdev_put_mouse, evkey btn left");
+            enqueue_event(s, EV_KEY, BTN_LEFT, buttons_state & 1);
+        }
+        
+        enqueue_event(s, EV_SYN, 0, 0);
+        return;
+    }
+
+    if (s->have_touch  &&  dz == 1) {
+        enqueue_event(s, EV_REL, REL_X, dx);
+        enqueue_event(s, EV_REL, REL_Y, dy);
+        enqueue_event(s, EV_SYN, 0, 0);
+        return;
+    }
+
     if (s->have_trackball  &&  dz == 1) {
         enqueue_event(s, EV_REL, REL_X, dx);
         enqueue_event(s, EV_REL, REL_Y, dy);
@@ -922,6 +957,7 @@ static void gf_evdev_handle_keyevent(DeviceState *dev, QemuConsole *src,
 
     int qcode = kv->qcode;
 
+    enqueue_event(s, EV_MSC, MSC_SCAN, qcode);
     enqueue_event(s, EV_KEY, qcode, evt->key->down);
 
     int qemu2_qcode = qemu_input_key_value_to_qcode(evt->key->key);
@@ -1175,7 +1211,9 @@ static void gf_evdev_realize(DeviceState *dev, Error **errp)
     events_set_bit(s, EV_KEY, LINUX_KEY_SEARCH);
 
     events_set_bit(s, EV_KEY, ANDROID_KEY_APPSWITCH);
+    events_set_bit(s, EV_MSC, MSC_SCAN);
 
+    events_set_bit(s, EV_SYN, EV_MSC);
     if (s->have_dpad) {
         events_set_bit(s, EV_KEY, LINUX_KEY_DOWN);
         events_set_bit(s, EV_KEY, LINUX_KEY_UP);
@@ -1189,6 +1227,9 @@ static void gf_evdev_realize(DeviceState *dev, Error **errp)
     }
     if (s->have_touch) {
         events_set_bit(s, EV_KEY, BTN_TOUCH);
+        events_set_bit(s, EV_KEY, BTN_MOUSE);
+        events_set_bit(s, EV_KEY, BTN_RIGHT);
+        events_set_bit(s, EV_KEY, BTN_RIGHT);
     }
 
     if (s->have_camera) {
@@ -1215,13 +1256,14 @@ static void gf_evdev_realize(DeviceState *dev, Error **errp)
          * corresponding bits. Doing this is simpler than trying to exclude
          * the DPad values from the ranges above.
          */
-        if (!s->have_dpad) {
-            events_clr_bit(s, EV_KEY, LINUX_KEY_DOWN);
-            events_clr_bit(s, EV_KEY, LINUX_KEY_UP);
-            events_clr_bit(s, EV_KEY, LINUX_KEY_LEFT);
-            events_clr_bit(s, EV_KEY, LINUX_KEY_RIGHT);
-            events_clr_bit(s, EV_KEY, LINUX_KEY_CENTER);
-        }
+        // region @jide enable arrow keys for keyboard.
+        // if (!s->have_dpad) {
+        //     events_clr_bit(s, EV_KEY, LINUX_KEY_DOWN);
+        //     events_clr_bit(s, EV_KEY, LINUX_KEY_UP);
+        //     events_clr_bit(s, EV_KEY, LINUX_KEY_LEFT);
+        //     events_clr_bit(s, EV_KEY, LINUX_KEY_RIGHT);
+        //     events_clr_bit(s, EV_KEY, LINUX_KEY_CENTER);
+        // }
     }
 
     /* configure EV_REL array
@@ -1239,6 +1281,9 @@ static void gf_evdev_realize(DeviceState *dev, Error **errp)
      */
     if (s->have_touch || s->have_multitouch) {
         ABSEntry *abs_values;
+        events_set_bit(s, EV_SYN, EV_REL);
+        events_set_bit(s, EV_REL, REL_WHEEL);
+        events_set_bits(s, EV_REL, REL_X, REL_Y);
 
         events_set_bit(s, EV_SYN, EV_ABS);
         events_set_bits(s, EV_ABS, ABS_X, ABS_Z);
